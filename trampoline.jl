@@ -78,7 +78,7 @@ function square(N, cm, sep1, sep2)
                      Float64,
                      Bool}}}(undef, 0)
 
-    links = links = [ Vector{Int64}(undef, 0) for i=1:N^2 ]
+    links = [ Vector{Int64}(undef, 0) for i=1:N^2 ]
     # create the particles
     for i=1:N
         for j=1:N
@@ -90,7 +90,7 @@ function square(N, cm, sep1, sep2)
             push!(masses, (x=orig.+i.*sep1.+j*sep2, v=[0.,0.,0.], m=1., fixed=fixed))
         end
     end
-    # go row by row, 
+    # go row by row, linking successive particles with a spring
     for i=1:N
         for j=1:N-1
             our = (i-1)*N + j
@@ -100,7 +100,8 @@ function square(N, cm, sep1, sep2)
             push!(links[other], our)   
         end
     end
-
+    # and same going column by column. In the end we have a
+    # square network of links
     for i=1:N-1
         for j=1:N
             our = (i-1)*N + j
@@ -111,6 +112,8 @@ function square(N, cm, sep1, sep2)
     end
     (masses, links)
 end
+
+
 #  creating the trampoline
 N = 50 # size of the square
 k = 5. # stiffness of the springs
