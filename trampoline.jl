@@ -4,6 +4,9 @@ using GLMakie, Makie, GeometryBasics
 println("done")
 ###
 function norm(a::Vector{Float64})
+"""
+  L2 norm of a vector a
+"""
    n = 0.
    @inbounds @simd for i=1:length(a)
    n += a[i]^2
@@ -13,6 +16,10 @@ end
 
 
 function springForce(a::Vector{Float64}, b::Vector{Float64}, x0::Float64, k::Float64)
+"""
+   returns the force exerced on particle a by particle b (given that they are 
+   linke by a spring). 
+"""
    diff = b .- a 
    dist = norm(diff)
    dir  = diff ./ dist 
@@ -20,31 +27,31 @@ function springForce(a::Vector{Float64}, b::Vector{Float64}, x0::Float64, k::Flo
 end
 
 function allForces(masses, links, g=-0.2, b=-0.02)
+"""
+   calculates the sum of the forces acting on each particle
+"""
    forces = [[0.,0.,0.] for i = 1:length(masses)]
    
    @inbounds for i = 1:length(masses)
+       # springs:
        others = links[i]
        @inbounds  for j = 1:length(others)
            forces[i] .+= springForce(masses[i].x, masses[others[j]].x, x0::Float64, k::Float64)
        end
-       forces[i] .+= [0., 0., -0.5*masses[i].m]
+       # gravity:
+       forces[i] .+= [0., 0., g*masses[i].m]
+       # friction:
        forces[i] .-= b .* masses[i].v
    end
 
    return forces
 end
 
-function Eulerstep!(masses, links, dt)
-   forces = allForces(masses, links)
-    @inbounds for i = 1:length(masses)
-       if  ! masses[i].fixed
-          masses[i].x .+= dt .* masses[i].v
-          masses[i].v .+= dt .* forces[i] / masses[i].m
-       end
-    end
-end
 
 function VelocityVerletStep!(masses, links, dt)
+"""
+  Time evolution using Velocity Verlet
+"""
    forces = allForces(masses, links)
    @inbounds for i = 1:length(masses)
        if  ! masses[i].fixed
@@ -59,6 +66,11 @@ end
 
 
 function square(N, cm, sep1, sep2)
+"""
+ initializes the trampoline. For now it's a square of
+ particles linked by springs (nearest neighbours are linked),
+ outermost particles are fixed.
+"""
     orig = cm .- sep1 .* (N / 2.)
     masses = Vector{NamedTuple{(:x, :v, :m, :fixed), 
                      Tuple{Vector{Float64}, 
@@ -67,6 +79,7 @@ function square(N, cm, sep1, sep2)
                      Bool}}}(undef, 0)
 
     links = links = [ Vector{Int64}(undef, 0) for i=1:N^2 ]
+    # create the particles
     for i=1:N
         for j=1:N
             if i == 1 || i == N || j == 1 || j == N
@@ -77,7 +90,7 @@ function square(N, cm, sep1, sep2)
             push!(masses, (x=orig.+i.*sep1.+j*sep2, v=[0.,0.,0.], m=1., fixed=fixed))
         end
     end
-
+    # go row by row, 
     for i=1:N
         for j=1:N-1
             our = (i-1)*N + j
@@ -98,13 +111,12 @@ function square(N, cm, sep1, sep2)
     end
     (masses, links)
 end
-
-N = 50
-k = 5.
-x0 = 0.
+#  creating the trampoline
+N = 50 # size of the square
+k = 5. # stiffness of the springs
+x0 = 0. # rest length of the springs
 masses, links = square(N, [0.,0.,0.], [1.,0, 0.], [0., 1., 0.])
-
-
+# preparing the visualization
 GLMakie.activate!()
 scene = Scene(backgroundcolor=:black)
 display(scene)
@@ -114,11 +126,11 @@ meshscatter!(scene, plotpoints,
              color=:white, 
              markersize=0.4)
 center!(scene)
-
+# parameters
 fps = 100
 nframes = 1300
-##
 dt = 0.1
+# main loop
 for i in 1:nframes
     VelocityVerletStep!(masses, links, dt)
     if i%3 == 0
